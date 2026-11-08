@@ -1,3 +1,78 @@
-import http from 'node:http';import fs from 'node:fs';import {WebSocketServer} from 'ws';
-const rooms=new Map();const server=http.createServer((req,res)=>{if(req.url==='/'||req.url==='/index.html'){res.writeHead(200,{'content-type':'text/html; charset=utf-8'});fs.createReadStream(new URL('./index.html',import.meta.url)).pipe(res)}else{res.writeHead(404).end('Not found')}});const wss=new WebSocketServer({server});function send(r,m){for(const c of r.clients)if(c.readyState===1)c.send(JSON.stringify({...m,users:r.clients.size}))}function code(){return Math.random().toString(36).slice(2,8).toUpperCase()}
-wss.on('connection',ws=>ws.on('message',b=>{let m;try{m=JSON.parse(b)}catch{return}if(m.type==='create'){const id=m.roomId||code();let r=rooms.get(id);if(!r){r={clients:new Set(),state:{}};rooms.set(id,r)}r.host=ws;r.clients.add(ws);ws.roomId=id;ws.send(JSON.stringify({type:'created',roomId:id,users:r.clients.size}));return}if(m.type==='join'){const id=String(m.roomId||'').toUpperCase(),r=rooms.get(id);if(!r){ws.send(JSON.stringify({type:'error',message:'Комната не найдена: создатель должен подключиться первым'}));return}ws.roomId=id;r.clients.add(ws);ws.send(JSON.stringify({type:'joined',roomId:id,state:r.state,users:r.clients.size}));send(r,{type:'users'});return}const r=rooms.get(ws.roomId);if(r&&r.host===ws&&['play','pause','seek','track'].includes(m.type)){r.state={...r.state,...m};send(r,{type:'sync',state:r.state})}})).on('close',()=>{if(ws.roomId){const r=rooms.get(ws.roomId);if(r){r.clients.delete(ws);if(r.host===ws){send(r,{type:'closed'});rooms.delete(ws.roomId)}else send(r,{type:'users'})}}}));server.listen(process.env.PORT||10000,'0.0.0.0',()=>console.log('NOISE listening'));
+import http from 'node:http';
+import fs from 'node:fs';
+import { WebSocketServer } from 'ws';
+
+const rooms = new Map();
+const server = http.createServer((req, res) => {
+  if (req.url === '/' || req.url === '/index.html') {
+    res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    fs.createReadStream(new URL('./index.html', import.meta.url)).pipe(res);
+    return;
+  }
+  res.writeHead(404).end('Not found');
+});
+const wss = new WebSocketServer({ server });
+const makeCode = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+function broadcast(room, message) {
+  for (const client of room.clients) {
+    if (client.readyState === 1) client.send(JSON.stringify({ ...message, users: room.clients.size }));
+  }
+}
+function leaveRoom(ws) {
+  if (!ws.roomId) return;
+  const room = rooms.get(ws.roomId);
+  if (!room) return;
+  room.clients.delete(ws);
+  if (room.host === ws) {
+    broadcast(room, { type: 'closed' });
+    rooms.delete(ws.roomId);
+  } else {
+    broadcast(room, { type: 'users' });
+  }
+  ws.roomId = null;
+}
+wss.on('connection', (ws) => {
+  ws.on('message', (buffer) => {
+    let message;
+    try { message = JSON.parse(buffer.toString()); } catch { return; }
+
+    if (message.type === 'create') {
+      leaveRoom(ws);
+      let roomId = String(message.roomId || makeCode()).toUpperCase();
+      if (!message.roomId) while (rooms.has(roomId)) roomId = makeCode();
+      let room = rooms.get(roomId);
+      if (!room) {
+        room = { clients: new Set(), state: {}, host: ws };
+        rooms.set(roomId, room);
+      }
+      room.host = ws;
+      room.clients.add(ws);
+      ws.roomId = roomId;
+      ws.send(JSON.stringify({ type: 'created', roomId, users: room.clients.size }));
+      return;
+    }
+
+    if (message.type === 'join') {
+      leaveRoom(ws);
+      const roomId = String(message.roomId || '').toUpperCase();
+      const room = rooms.get(roomId);
+      if (!room) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Комната не найдена: создатель должен подключиться первым' }));
+        return;
+      }
+      ws.roomId = roomId;
+      room.clients.add(ws);
+      ws.send(JSON.stringify({ type: 'joined', roomId, state: room.state, users: room.clients.size }));
+      broadcast(room, { type: 'users' });
+      return;
+    }
+
+    const room = rooms.get(ws.roomId);
+    if (room && room.host === ws && ['play', 'pause', 'seek', 'track'].includes(message.type)) {
+      room.state = { ...room.state, ...message };
+      broadcast(room, { type: 'sync', state: room.state });
+    }
+  });
+  ws.on('close', () => leaveRoom(ws));
+});
+server.listen(process.env.PORT || 10000, '0.0.0.0', () => console.log('NOISE listening'));

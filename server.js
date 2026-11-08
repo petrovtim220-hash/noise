@@ -1,5 +1,6 @@
 import http from 'node:http';
 import fs from 'node:fs';
+import path from 'node:path';
 import { WebSocketServer } from 'ws';
 
 const rooms = new Map();
@@ -105,6 +106,13 @@ const server = http.createServer((req, res) => {
   if (req.url === '/' || req.url === '/index.html') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     fs.createReadStream(new URL('./index.html', import.meta.url)).pipe(res);
+    return;
+  }
+  if (requestUrl.pathname.startsWith('/tracks/')) {
+    const name = path.basename(decodeURIComponent(requestUrl.pathname));
+    if (!name.toLowerCase().endsWith('.mp3')) { res.writeHead(404).end(); return; }
+    res.writeHead(200, { 'content-type': 'audio/mpeg', 'accept-ranges': 'bytes', 'cache-control': 'public, max-age=31536000' });
+    fs.createReadStream(new URL(`./tracks/${name}`, import.meta.url)).pipe(res);
     return;
   }
   res.writeHead(404).end('Not found');

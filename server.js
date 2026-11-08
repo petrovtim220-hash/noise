@@ -4,6 +4,11 @@ import { WebSocketServer } from 'ws';
 
 const rooms = new Map();
 const server = http.createServer((req, res) => {
+  if (req.url === '/config') {
+    res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+    res.end(JSON.stringify({ supabaseUrl: process.env.SUPABASE_URL || '', supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '' }));
+    return;
+  }
   if (req.url === '/' || req.url === '/index.html') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     fs.createReadStream(new URL('./index.html', import.meta.url)).pipe(res);

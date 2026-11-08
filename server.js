@@ -108,6 +108,17 @@ const server = http.createServer((req, res) => {
     fs.createReadStream(new URL('./index.html', import.meta.url)).pipe(res);
     return;
   }
+  if (requestUrl.pathname.startsWith('/covers/')) {
+    const name = path.basename(decodeURIComponent(requestUrl.pathname));
+    if (!/^[a-z0-9-]+\.jpg$/i.test(name)) { res.writeHead(404).end(); return; }
+    const file = new URL(`./covers/${name}`, import.meta.url);
+    fs.stat(file, (error, stat) => {
+      if (error) { res.writeHead(404).end('Cover not found'); return; }
+      res.writeHead(200, { 'content-type': 'image/jpeg', 'content-length': stat.size, 'cache-control': 'public, max-age=31536000, immutable' });
+      fs.createReadStream(file).pipe(res);
+    });
+    return;
+  }
   if (requestUrl.pathname.startsWith('/tracks/')) {
     const name = path.basename(decodeURIComponent(requestUrl.pathname));
     if (!name.toLowerCase().endsWith('.mp3')) { res.writeHead(404).end(); return; }

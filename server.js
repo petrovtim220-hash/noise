@@ -111,8 +111,24 @@ const server = http.createServer((req, res) => {
   if (requestUrl.pathname.startsWith('/tracks/')) {
     const name = path.basename(decodeURIComponent(requestUrl.pathname));
     if (!name.toLowerCase().endsWith('.mp3')) { res.writeHead(404).end(); return; }
-    res.writeHead(200, { 'content-type': 'audio/mpeg', 'accept-ranges': 'bytes', 'cache-control': 'public, max-age=31536000' });
-    fs.createReadStream(new URL(`./tracks/${name}`, import.meta.url)).pipe(res);
+    const file = new URL(`./tracks/${name}`, import.meta.url);
+    fs.stat(file, (error, stat) => {
+      if (error) { res.writeHead(404).end('Track not found'); return; }
+      const range = req.headers.range;
+      if (range) {
+        const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+        if (!match) { res.writeHead(416, { 'content-range': `bytes */${stat.size}` }).end(); return; }
+        let start = Number(match[1] || 0);
+        let end = Number(match[2] || stat.size - 1);
+        if (start >= stat.size || end < start) { res.writeHead(416, { 'content-range': `bytes */${stat.size}` }).end(); return; }
+        end = Math.min(end, stat.size - 1);
+        res.writeHead(206, { 'content-type': 'audio/mpeg', 'accept-ranges': 'bytes', 'content-range': `bytes ${start}-${end}/${stat.size}`, 'content-length': end - start + 1, 'cache-control': 'public, max-age=31536000' });
+        fs.createReadStream(file, { start, end }).pipe(res);
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'audio/mpeg', 'accept-ranges': 'bytes', 'content-length': stat.size, 'cache-control': 'public, max-age=31536000' });
+      fs.createReadStream(file).pipe(res);
+    });
     return;
   }
   res.writeHead(404).end('Not found');

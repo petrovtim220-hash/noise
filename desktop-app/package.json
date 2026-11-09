@@ -1,6 +1,6 @@
 {
   "name": "noise-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Desktop app for NOISE music",
   "main": "main.cjs",
@@ -25,7 +25,8 @@
     ],
     "win": {
       "target": "nsis",
-      "artifactName": "NOISE-Setup-${version}.${ext}"
+      "artifactName": "NOISE-Setup-${version}.${ext}",
+      "icon": "icon.png"
     },
     "nsis": {
       "oneClick": true,

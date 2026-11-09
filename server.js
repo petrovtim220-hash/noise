@@ -119,6 +119,10 @@ wss.on('connection', (ws) => {
       let roomId = String(message.roomId || makeCode()).toUpperCase();
       if (!message.roomId) while (rooms.has(roomId)) roomId = makeCode();
       let room = rooms.get(roomId);
+      if (room && room.host !== ws && room.host?.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'error', message: 'Комната с таким кодом уже занята' }));
+        return;
+      }
       if (!room) {
         room = { clients: new Set(), state: {}, host: ws };
         rooms.set(roomId, room);
@@ -126,7 +130,7 @@ wss.on('connection', (ws) => {
       room.host = ws;
       room.clients.add(ws);
       ws.roomId = roomId;
-      ws.send(JSON.stringify({ type: 'created', roomId, users: room.clients.size }));
+      ws.send(JSON.stringify({ type: 'created', roomId, isHost: true, users: room.clients.size }));
       return;
     }
 
@@ -140,7 +144,7 @@ wss.on('connection', (ws) => {
       }
       ws.roomId = roomId;
       room.clients.add(ws);
-      ws.send(JSON.stringify({ type: 'joined', roomId, state: room.state, users: room.clients.size }));
+      ws.send(JSON.stringify({ type: 'joined', roomId, isHost: false, state: room.state, users: room.clients.size }));
       broadcast(room, { type: 'users' });
       return;
     }

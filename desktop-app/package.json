@@ -1,0 +1,23 @@
+{
+  "name": "noise-desktop",
+  "version": "1.0.1",
+  "private": true,
+  "description": "Desktop app for NOISE music",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.noise.music",
+    "productName": "NOISE",
+    "directories": { "output": "dist" },
+    "files": ["main.cjs", "preload.cjs", "package.json"],
+    "win": { "target": "nsis", "artifactName": "NOISE-Setup-${version}.${ext}" },
+    "nsis": { "oneClick": true, "perMachine": false, "allowToChangeInstallationDirectory": false }
+  }
+}

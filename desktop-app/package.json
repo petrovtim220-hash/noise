@@ -1,6 +1,6 @@
 {
   "name": "noise-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "description": "Desktop app for NOISE music",
   "main": "main.cjs",
@@ -15,9 +15,22 @@
   "build": {
     "appId": "com.noise.music",
     "productName": "NOISE",
-    "directories": { "output": "dist" },
-    "files": ["main.cjs", "preload.cjs", "package.json"],
-    "win": { "target": "nsis", "artifactName": "NOISE-Setup-${version}.${ext}" },
-    "nsis": { "oneClick": true, "perMachine": false, "allowToChangeInstallationDirectory": false }
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "NOISE-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    }
   }
 }
